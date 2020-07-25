@@ -1,22 +1,19 @@
 ﻿using System;
 using System.Data;
 using System.Data.SqlClient;
-using TestCacheServices.SqlConn;
 
 namespace TestCacheServices
 {
     class InsertData
     {
-        public static void Insert()
+        public static void Insert(SqlConnection connection)
         {
-            SqlConnection connection = DBUtils.GetDBConnection();
-            connection.Open();
             try
             {
                 // Команда Insert
                 string sql = "Insert into Orders (  OrderDate" +
-                 //   "RequiredDate, ShippedDate, ShipVia, Freight, ShipName, ShipAddress, ShipCity," +
-                 //   " ShipRegion, ShipPostalCode, ShipCountry" +
+                    //   "RequiredDate, ShippedDate, ShipVia, Freight, ShipName, ShipAddress, ShipCity," +
+                    //   " ShipRegion, ShipPostalCode, ShipCountry" +
                     ") "
                 + " values ( @orderdate) ";
 
@@ -42,12 +39,6 @@ namespace TestCacheServices
             {
                 Console.WriteLine("Error: " + e);
                 Console.WriteLine(e.StackTrace);
-            }
-            finally
-            {
-                connection.Close();
-                connection.Dispose();
-                connection = null;
             }
         }
     }
