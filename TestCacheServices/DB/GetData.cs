@@ -142,8 +142,8 @@ namespace TestCacheServices
             {
                 await conn.OpenAsync();
                 try
-                {
-                    string sqlExpression = "SELECT * FROM Orders where OrderID >= 10248 and OrderID <= 10250;";
+                {// "SELECT * FROM Orders where OrderID >= 10248 and OrderID <= 10250;"
+                    string sqlExpression = "SELECT * FROM Orders;";
 
                     SqlCommand cmd = new SqlCommand(sqlExpression, conn);
                     using SqlDataReader reader = await cmd.ExecuteReaderAsync();

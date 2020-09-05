@@ -1,60 +1,96 @@
 ﻿using Microsoft.Extensions.Caching.Memory;
 using System;
 using System.Collections.Generic;
-
+using System.Threading.Tasks;
 
 namespace TestCacheServices
 {
     public class MemoryCacheWithPolicy<TItem>
     {
-        private readonly MemoryCache _cache = new MemoryCache(new MemoryCacheOptions()
+        private readonly MemoryCache _cache;
+        public MemoryCacheWithPolicy()
         {
-            SizeLimit = 1024
-        });
+            _cache = new MemoryCache(new MemoryCacheOptions()
+            {
+                SizeLimit = 1024
+            });
+            Console.WriteLine("MemoryCacheWithPolicy ");
+        }
+
 
         public TItem GetOrCreate(object key, Func<TItem> createItem)
         {
-            if (!_cache.TryGetValue(key, out TItem cacheEntry))// Look for cache key.
+            if (!_cache.TryGetValue(key, out TItem cacheEntry))
             {
-                // Key not in cache, so get data.
                 cacheEntry = createItem();
 
                 var cacheEntryOptions = new MemoryCacheEntryOptions()
-                    //Size amount
                     .SetSize(1)
-                    //Priority on removing when reaching size limit (memory pressure)
                     .SetPriority(CacheItemPriority.Normal)
-                    // Keep in cache for this time, reset time if accessed.
-                    .SetSlidingExpiration(TimeSpan.FromMinutes(5))
-                    // Remove from cache after this time, regardless of sliding expiration
-                    .SetAbsoluteExpiration(DateTime.Now.AddHours(6)); //TimeSpan.FromSeconds(10)
+                    .SetSlidingExpiration(TimeSpan.FromSeconds(30))
+                    .SetAbsoluteExpiration(DateTime.Now.AddMinutes(1));
 
-                // Save data in cache.
                 _cache.Set(key, cacheEntry, cacheEntryOptions);
             }
             return cacheEntry;
         }
 
-        public List<string> GetOrCreate(Func<List<string>> query, string key)
+        public async Task<List<string>> GetOrCreate(Func<Task<List<string>>> query, string key)
         {
-            if (!_cache.TryGetValue(key, out List<string> cacheEntry))// Look for cache key.
+            if (!_cache.TryGetValue(key, out List<string> cacheEntry))
             {
-                // Key not in cache, so get data.
-                cacheEntry = query();
-
+                Console.WriteLine(" NOT_IN_CACHE GET_VALUE_1");
+                cacheEntry = await query();
                 var cacheEntryOptions = new MemoryCacheEntryOptions()
                 .SetSize(1)//Size amount
                            //Priority on removing when reaching size limit (memory pressure)
                    .SetPriority(CacheItemPriority.High)
                    // Keep in cache for this time, reset time if accessed.
-                   .SetSlidingExpiration(TimeSpan.FromSeconds(2))
+                   .SetSlidingExpiration(TimeSpan.FromSeconds(30))
                    // Remove from cache after this time, regardless of sliding expiration
-                   .SetAbsoluteExpiration(TimeSpan.FromSeconds(10));
+                   .SetAbsoluteExpiration(TimeSpan.FromMinutes(1));
 
-                // Save data in cache.
+                _cache.Set(key, cacheEntry, cacheEntryOptions);
+            }
+            Console.WriteLine(" END FUNCTI");
+            return cacheEntry;
+        }
+
+        public async Task<List<Dictionary<string, object>>> GetOrCreate(Func<Task<List<Dictionary<string, object>>>> query, string key)
+        {
+            if (!_cache.TryGetValue(key, out List<Dictionary<string, object>> cacheEntry))
+            {
+                cacheEntry = await query();
+                var cacheEntryOptions = new MemoryCacheEntryOptions()
+               .SetSize(1)
+                  .SetPriority(CacheItemPriority.High)
+                  .SetSlidingExpiration(TimeSpan.FromSeconds(30))
+                  .SetAbsoluteExpiration(TimeSpan.FromMinutes(1));
+
                 _cache.Set(key, cacheEntry, cacheEntryOptions);
             }
             return cacheEntry;
+        }
+
+        public async Task<Dictionary<string, object>> GetOrCreate(Func<Task<Dictionary<string, object>>> query, string key)
+        {
+            if (!_cache.TryGetValue(key, out Dictionary<string, object> cacheEntry))
+            {
+                cacheEntry = await query();
+                var cacheEntryOptions = new MemoryCacheEntryOptions()
+               .SetSize(1)
+                  .SetPriority(CacheItemPriority.High)
+                  .SetSlidingExpiration(TimeSpan.FromSeconds(30))
+                  .SetAbsoluteExpiration(TimeSpan.FromMinutes(1));
+
+                _cache.Set(key, cacheEntry, cacheEntryOptions);
+            }
+            return cacheEntry;
+        }
+
+        public void cleanCache(string key)
+        {
+            _cache.Remove(key);
         }
     }
 }

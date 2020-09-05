@@ -9,37 +9,34 @@ namespace TestCacheServices
 {
     public class WaitToFinishWithPolicyMemoryCache<TItem>
     {
-        private MemoryCache _cache = new MemoryCache(new MemoryCacheOptions()
+        private MemoryCache _cache;
+        private readonly ConcurrentDictionary<object, SemaphoreSlim> _locks;
+        public WaitToFinishWithPolicyMemoryCache()
         {
-            SizeLimit = 1024
-        });
-        private ConcurrentDictionary<object, SemaphoreSlim> _locks = new ConcurrentDictionary<object, SemaphoreSlim>();
+            _cache = new MemoryCache(new MemoryCacheOptions()
+            {
+                SizeLimit = 1024
+            });
+            _locks = new ConcurrentDictionary<object, SemaphoreSlim>();
+            Console.WriteLine("WaitPolicyConstructor ");
+        }
 
         public async Task<TItem> GetOrCreate(object key, Func<Task<TItem>> createItem)
         {
-            TItem cacheEntry;
-
-            if (!_cache.TryGetValue(key, out cacheEntry))// Look for cache key.
+            if (!_cache.TryGetValue(key, out TItem cacheEntry))
             {
                 SemaphoreSlim mylock = _locks.GetOrAdd(key, k => new SemaphoreSlim(1, 1));
-
                 await mylock.WaitAsync();
                 try
                 {
-                    //if (!_cache.TryGetValue(key, out cacheEntry))
+                    if (!_cache.TryGetValue(key, out cacheEntry))
                     {
-                        // Key not in cache, so get data.
                         cacheEntry = await createItem();
                         var cacheEntryOptions = new MemoryCacheEntryOptions()
-                                //Size amount 
                                 .SetSize(1)
-                                //Priority on removing when reaching size limit (memory pressure)
                                 .SetPriority(CacheItemPriority.High)
-                                // Keep in cache for this time, reset time if accessed.
-                                .SetSlidingExpiration(TimeSpan.FromSeconds(2))
-                                // Remove from cache after this time, regardless of sliding expiration
-                                .SetAbsoluteExpiration(TimeSpan.FromSeconds(10));
-
+                                .SetSlidingExpiration(TimeSpan.FromSeconds(30))
+                                .SetAbsoluteExpiration(TimeSpan.FromMinutes(1));
                         _cache.Set(key, cacheEntry, cacheEntryOptions);
                     }
                 }
@@ -53,30 +50,22 @@ namespace TestCacheServices
 
         public async Task<List<string>> GetOrCreate(Func<Task<List<string>>> query, string key)
         {
-            List<string> cacheEntry;
-
-            if (!_cache.TryGetValue(key, out cacheEntry))// Look for cache key.
+            if (!_cache.TryGetValue(key, out List<string> cacheEntry))
             {
                 SemaphoreSlim mylock = _locks.GetOrAdd(key, k => new SemaphoreSlim(1, 1));
-
                 await mylock.WaitAsync();
                 try
                 {
                     if (!_cache.TryGetValue(key, out cacheEntry))
                     {
-                        // Key not in cache, so get data.
                         cacheEntry = await query();
                         var cacheEntryOptions = new MemoryCacheEntryOptions()
-                                //Size amount 
                                 .SetSize(1)
-                                //Priority on removing when reaching size limit (memory pressure)
                                 .SetPriority(CacheItemPriority.High)
-                                // Keep in cache for this time, reset time if accessed.
-                                .SetSlidingExpiration(TimeSpan.FromSeconds(2))
-                                // Remove from cache after this time, regardless of sliding expiration
-                                .SetAbsoluteExpiration(TimeSpan.FromSeconds(10));
+                                .SetSlidingExpiration(TimeSpan.FromSeconds(30))
+                                .SetAbsoluteExpiration(TimeSpan.FromMinutes(1));
 
-                        _cache.Set(CacheKeys.CityList, cacheEntry, cacheEntryOptions);
+                        _cache.Set(key, cacheEntry, cacheEntryOptions);
                     }
                 }
                 finally
@@ -86,6 +75,66 @@ namespace TestCacheServices
             }
             return cacheEntry;
         }
-    }
 
+        public async Task<List<Dictionary<string, object>>> GetOrCreate(Func<Task<List<Dictionary<string, object>>>> query, string key)
+        {
+            if (!_cache.TryGetValue(key, out List<Dictionary<string, object>> cacheEntry))
+            {
+                SemaphoreSlim mylock = _locks.GetOrAdd(key, k => new SemaphoreSlim(1, 1));
+                await mylock.WaitAsync();
+                try
+                {
+                    if (!_cache.TryGetValue(key, out cacheEntry))
+                    {
+                        cacheEntry = await query();
+                        var cacheEntryOptions = new MemoryCacheEntryOptions()
+                                .SetSize(1)
+                                .SetPriority(CacheItemPriority.High)
+                                .SetSlidingExpiration(TimeSpan.FromMinutes(1))
+                                .SetAbsoluteExpiration(TimeSpan.FromMinutes(1));
+
+                        _cache.Set(key, cacheEntry, cacheEntryOptions);
+                    }
+                }
+                finally
+                {
+                    mylock.Release();
+                }
+            }
+            return cacheEntry;
+        }
+
+        public async Task<Dictionary<string, object>> GetOrCreate(Func<Task<Dictionary<string, object>>> query, string key)
+        {
+            if (!_cache.TryGetValue(key, out Dictionary<string, object> cacheEntry))
+            {
+                SemaphoreSlim mylock = _locks.GetOrAdd(key, k => new SemaphoreSlim(1, 1));
+                await mylock.WaitAsync();
+                try
+                {
+                    if (!_cache.TryGetValue(key, out cacheEntry))
+                    {
+                        cacheEntry = await query();
+                        var cacheEntryOptions = new MemoryCacheEntryOptions()
+                                .SetSize(1)
+                                .SetPriority(CacheItemPriority.High)
+                                .SetSlidingExpiration(TimeSpan.FromMinutes(1))
+                                .SetAbsoluteExpiration(TimeSpan.FromMinutes(1));
+
+                        _cache.Set(key, cacheEntry, cacheEntryOptions);
+                    }
+                }
+                finally
+                {
+                    mylock.Release();
+                }
+            }
+            return cacheEntry;
+        }
+
+        public void cleanCache(string key)
+        {
+            _cache.Remove(key);
+        }
+    }
 }
